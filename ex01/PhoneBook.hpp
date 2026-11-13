@@ -7,25 +7,21 @@
 class PhoneBook
 {
 public:
-	PhoneBook(void);
-	~PhoneBook(void);
+	PhoneBook();
+	~PhoneBook();
 
-	void	addContact(void);
-	void	searchContact(void) const;
+	void	add();
+	void	search() const;
 
 private:
-	static const int	_maxContacts = 8;
-	static const int	_columnWidth = 10;
+	Contact	_contacts[8];
+	int		_count;	// number of saved contacts, 8 at most
+	int		_next;	// index where the next contact will be saved
 
-	Contact	_contacts[_maxContacts];
-	int		_count;		// number of saved contacts
-	int		_oldest;	// slot the next contact will be written to
-
-	void				_displayList(void) const;
-	void				_displayContact(int index) const;
-	static bool			_readField(const std::string &label, std::string &value);
-	static bool			_isValidField(const std::string &value);
-	static std::string	_truncate(const std::string &text);
+	std::string	_ask(std::string question) const;
+	std::string	_truncate(std::string text) const;
+	void		_printTable() const;
+	void		_printContact(int index) const;
 };
 
 #endif

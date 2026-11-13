@@ -1,128 +1,98 @@
 #include "PhoneBook.hpp"
 #include <iostream>
 #include <iomanip>
-#include <cctype>
 
-PhoneBook::PhoneBook(void) : _count(0), _oldest(0)
+PhoneBook::PhoneBook() : _count(0), _next(0)
 {
 }
 
-PhoneBook::~PhoneBook(void)
+PhoneBook::~PhoneBook()
 {
 }
 
-void	PhoneBook::addContact(void)
+void	PhoneBook::add()
 {
-	std::string	firstName;
-	std::string	lastName;
-	std::string	nickname;
-	std::string	phoneNumber;
-	std::string	darkestSecret;
+	Contact	contact;
 
-	if (_count == _maxContacts)
-		std::cout << "The phonebook is full: the oldest contact will be replaced."
-			<< std::endl;
-	// stop as soon as one field can't be read (end of input)
-	if (!_readField("First name", firstName)
-		|| !_readField("Last name", lastName)
-		|| !_readField("Nickname", nickname)
-		|| !_readField("Phone number", phoneNumber)
-		|| !_readField("Darkest secret", darkestSecret))
+	contact.setFirstName(_ask("First name: "));
+	contact.setLastName(_ask("Last name: "));
+	contact.setNickname(_ask("Nickname: "));
+	contact.setPhoneNumber(_ask("Phone number: "));
+	contact.setDarkestSecret(_ask("Darkest secret: "));
+	// input closed (ctrl-D) before the end: nothing is saved
+	if (!std::cin.good())
 		return;
-	_contacts[_oldest] = Contact(firstName, lastName, nickname,
-		phoneNumber, darkestSecret);
-	// once the 8 slots are used, wrap around to overwrite the oldest one
-	_oldest = (_oldest + 1) % _maxContacts;
-	if (_count < _maxContacts)
+	_contacts[_next] = contact;
+	// after index 7 comes index 0 again: the oldest contact gets replaced
+	_next = (_next + 1) % 8;
+	if (_count < 8)
 		_count++;
 	std::cout << "Contact saved." << std::endl;
 }
 
-void	PhoneBook::searchContact(void) const
+void	PhoneBook::search() const
 {
 	std::string	input;
+	int			index = -1;
 
 	if (_count == 0)
 	{
 		std::cout << "The phonebook is empty." << std::endl;
 		return;
 	}
-	_displayList();
+	_printTable();
 	std::cout << "Index of the contact to display: ";
-	if (!std::getline(std::cin, input))
-		return;
-	if (input.length() != 1 || !std::isdigit(static_cast<unsigned char>(input[0]))
-		|| input[0] - '0' >= _count)
+	std::getline(std::cin, input);
+	if (input.length() == 1)
+		index = input[0] - '0';
+	if (index < 0 || index >= _count)
 	{
 		std::cout << "Invalid index." << std::endl;
 		return;
 	}
-	_displayContact(input[0] - '0');
+	_printContact(index);
 }
 
-void	PhoneBook::_displayList(void) const
+// Asks the question again until the answer is not empty.
+std::string	PhoneBook::_ask(std::string question) const
 {
-	std::cout << std::setw(_columnWidth) << "Index" << '|'
-		<< std::setw(_columnWidth) << "First name" << '|'
-		<< std::setw(_columnWidth) << "Last name" << '|'
-		<< std::setw(_columnWidth) << "Nickname" << std::endl;
+	std::string	answer;
+
+	while (answer.empty() && std::cin.good())
+	{
+		std::cout << question;
+		std::getline(std::cin, answer);
+	}
+	return answer;
+}
+
+std::string	PhoneBook::_truncate(std::string text) const
+{
+	if (text.length() > 10)
+		return text.substr(0, 9) + ".";
+	return text;
+}
+
+void	PhoneBook::_printTable() const
+{
+	std::cout << std::setw(10) << "Index" << "|"
+		<< std::setw(10) << "First name" << "|"
+		<< std::setw(10) << "Last name" << "|"
+		<< std::setw(10) << "Nickname" << std::endl;
 	for (int i = 0; i < _count; i++)
 	{
-		std::cout << std::setw(_columnWidth) << i << '|'
-			<< std::setw(_columnWidth) << _truncate(_contacts[i].getFirstName()) << '|'
-			<< std::setw(_columnWidth) << _truncate(_contacts[i].getLastName()) << '|'
-			<< std::setw(_columnWidth) << _truncate(_contacts[i].getNickname())
-			<< std::endl;
+		std::cout << std::setw(10) << i << "|"
+			<< std::setw(10) << _truncate(_contacts[i].getFirstName()) << "|"
+			<< std::setw(10) << _truncate(_contacts[i].getLastName()) << "|"
+			<< std::setw(10) << _truncate(_contacts[i].getNickname()) << std::endl;
 	}
 }
 
-void	PhoneBook::_displayContact(int index) const
+void	PhoneBook::_printContact(int index) const
 {
-	const Contact	&contact = _contacts[index];
-
-	std::cout << "First name:     " << contact.getFirstName() << std::endl;
-	std::cout << "Last name:      " << contact.getLastName() << std::endl;
-	std::cout << "Nickname:       " << contact.getNickname() << std::endl;
-	std::cout << "Phone number:   " << contact.getPhoneNumber() << std::endl;
-	std::cout << "Darkest secret: " << contact.getDarkestSecret() << std::endl;
-}
-
-// Prompts until the user enters a valid value. Returns false on end of input.
-bool	PhoneBook::_readField(const std::string &label, std::string &value)
-{
-	while (true)
-	{
-		std::cout << label << ": ";
-		if (!std::getline(std::cin, value))
-			return false;
-		if (_isValidField(value))
-			return true;
-		std::cout << "Invalid input: the field can't be empty or contain"
-			<< " control characters (tab, arrow keys...)." << std::endl;
-	}
-}
-
-// A field must contain at least one non-space character, and no control
-// characters, which would break the alignment of the SEARCH table.
-bool	PhoneBook::_isValidField(const std::string &value)
-{
-	bool	hasVisibleChar = false;
-
-	for (std::string::size_type i = 0; i < value.length(); i++)
-	{
-		unsigned char	c = static_cast<unsigned char>(value[i]);
-
-		if (std::iscntrl(c))
-			return false;
-		if (!std::isspace(c))
-			hasVisibleChar = true;
-	}
-	return hasVisibleChar;
-}
-
-std::string	PhoneBook::_truncate(const std::string &text)
-{
-	if (text.length() > _columnWidth)
-		return text.substr(0, _columnWidth - 1) + ".";
-	return text;
+	std::cout << "First name: " << _contacts[index].getFirstName() << std::endl;
+	std::cout << "Last name: " << _contacts[index].getLastName() << std::endl;
+	std::cout << "Nickname: " << _contacts[index].getNickname() << std::endl;
+	std::cout << "Phone number: " << _contacts[index].getPhoneNumber() << std::endl;
+	std::cout << "Darkest secret: " << _contacts[index].getDarkestSecret() << std::endl;
 }
